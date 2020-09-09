@@ -37,9 +37,6 @@ data:
     #
     # INSERT YOUR OWN RULE(S) HERE TO ALLOW ACCESS FROM YOUR CLIENTS
     #
-    #acl kubeurl url_regex kubernetes\.io\/docs
-    #acl kubeurl url_regex ^https://kubernetes.io/search.*
-    #acl kubeurl url_regex ^https://kubernetes.io/*\.(css|png|svg|js|jpg)
     acl KubeUrl urlpath_regex /(docs|search)
     acl StaticContent urlpath_regex \.(gif|jpg|png|svg|css|js|ttf|woff|woff2)$
     acl KubeIo ssl::server_name .kubernetes.io
