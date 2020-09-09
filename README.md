@@ -5,7 +5,7 @@ I'm preparing for Kubernetes certification. Since the only website allowed durin
 
 ## Requirements
 
-This PoC is meant to be run on minikube on your computer, so you must have it installed and running. Just apply the yaml file with
+This PoC is meant to be run on minikube so you must have it installed and running on your computer. Just apply the yaml file with
 ```
 kubectl apply -f squid.yaml
 ```
