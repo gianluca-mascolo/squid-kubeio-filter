@@ -35,7 +35,7 @@ squid   NodePort   10.98.172.39   <none>        3128:32347/TCP   54m
 ```
 HTTP proxy address in the example is 192.168.39.230:32347
 ### Browser configuration
-- Configure your HTTP and HTTPS proxy to _MinikubeIp_:_NodePort_
+- Configure your HTTP and HTTPS proxy to _MinikubeIp_:_NodePort_ (do not forget HTTPS or the filter won't work)
 - Load the squid-ca-cert.pem in your certification authorities list
 - Extra Tip: you can use a custom profile in your browser only for that, e.g. with `firefox -P`
 
