@@ -1,0 +1,212 @@
+apiVersion: v1
+data:
+  squid.conf: |
+    include /etc/squid/conf.d/*.conf
+    #
+    # Recommended minimum configuration:
+    #
+    # Example rule allowing access from your local networks.
+    # Adapt to list your (internal) IP networks from where browsing
+    # should be allowed
+    acl localnet src 0.0.0.1-0.255.255.255	# RFC 1122 "this" network (LAN)
+    acl localnet src 10.0.0.0/8		# RFC 1918 local private network (LAN)
+    acl localnet src 100.64.0.0/10		# RFC 6598 shared address space (CGN)
+    acl localnet src 169.254.0.0/16 	# RFC 3927 link-local (directly plugged) machines
+    acl localnet src 172.16.0.0/12		# RFC 1918 local private network (LAN)
+    acl localnet src 192.168.0.0/16		# RFC 1918 local private network (LAN)
+    acl localnet src fc00::/7       	# RFC 4193 local private network range
+    acl localnet src fe80::/10      	# RFC 4291 link-local (directly plugged) machines
+    acl SSL_ports port 443
+    acl Safe_ports port 80		# http
+    acl Safe_ports port 443		# https
+    acl CONNECT method CONNECT
+    #
+    # Recommended minimum Access Permission configuration:
+    #
+    # Deny requests to certain unsafe ports
+    http_access deny !Safe_ports
+    # Deny CONNECT to other than secure SSL ports
+    #http_access deny CONNECT !SSL_ports
+    # Only allow cachemgr access from localhost
+    #http_access allow localhost manager
+    http_access deny manager
+    # We strongly recommend the following be uncommented to protect innocent
+    # web applications running on the proxy server who think the only
+    # one who can access services on "localhost" is a local user
+    http_access deny to_localhost
+    #
+    # INSERT YOUR OWN RULE(S) HERE TO ALLOW ACCESS FROM YOUR CLIENTS
+    #
+    #acl kubeurl url_regex kubernetes\.io\/docs
+    #acl kubeurl url_regex ^https://kubernetes.io/search.*
+    #acl kubeurl url_regex ^https://kubernetes.io/*\.(css|png|svg|js|jpg)
+    acl KubeUrl urlpath_regex /(docs|search)
+    acl StaticContent urlpath_regex \.(gif|jpg|png|svg|css|js|ttf|woff|woff2)$
+    acl KubeIo ssl::server_name .kubernetes.io
+    acl GoogleSites ssl::server_name .googletagmanager.com
+    acl GoogleSites ssl::server_name .google.com 
+    acl GoogleSites ssl::server_name .googleapis.com
+    acl GoogleSites ssl::server_name stats.g.doubleclick.net
+    acl GoogleAnalytics ssl::server_name .google-analytics.com
+    acl CdnSites ssl::server_name .cloudflare.com 
+    acl CdnSites ssl::server_name .bootstrapcdn.com 
+    acl KubeRef referer_regex ^https://kubernetes.io
+    acl step1 at_step SslBump1
+    acl step2 at_step SslBump2
+    acl step3 at_step SslBump3
+    ssl_bump peek step1 all
+    ssl_bump bump KubeIo
+    ssl_bump bump GoogleSites
+    ssl_bump bump GoogleAnalytics
+    ssl_bump bump CdnSites
+    ssl_bump terminate all
+    http_access allow CONNECT localnet SSL_ports KubeIo
+    http_access allow CONNECT localnet SSL_ports GoogleSites
+    http_access allow CONNECT localnet SSL_ports GoogleAnalytics
+    http_access allow CONNECT localnet SSL_ports CdnSites
+    http_access allow CONNECT localhost SSL_ports KubeIo
+    http_access allow CONNECT localhost SSL_ports GoogleSites
+    http_access allow CONNECT localhost SSL_ports GoogleAnalytics
+    http_access allow CONNECT localhost SSL_ports CdnSites
+    http_access allow KubeIo KubeUrl
+    http_access allow KubeIo StaticContent
+    http_access deny KubeIo 
+    http_access allow GoogleSites KubeRef
+    http_access allow GoogleSites StaticContent
+    http_access allow CdnSites KubeRef
+    http_access allow CdnSites StaticContent
+    http_access allow GoogleAnalytics KubeRef
+    http_access allow GoogleAnalytics StaticContent
+    # And finally deny all other access to this proxy
+    http_access deny all
+    cache deny all
+    #access_log none
+    cache_log /dev/null
+    cache_store_log none
+    # Squid normally listens to port 3128
+    http_port 3128 ssl-bump generate-host-certificates=on dynamic_cert_mem_cache_size=4MB tls-cert=/etc/squid/cert/squid-ca-cert.pem tls-key=/etc/squid/cert/squid-ca-key.pem
+    # Uncomment and adjust the following to add a disk cache directory.
+    #cache_dir ufs /var/cache/squid 100 16 256
+    logformat combinedssl   %>a %[ui %[un [%tl] "%rm %ru HTTP/%rv" %>Hs %<st "%{Referer}>h" "%{User-Agent}>h" %Ss:%Sh %ssl::bump_mode
+    access_log stdio:/proc/self/fd/1 combinedssl 
+    logfile_rotate 0
+    # Leave coredumps in the first cache dir
+    coredump_dir /var/cache/squid
+    #
+    # Add any of your own refresh_pattern entries above these.
+    #
+    refresh_pattern ^ftp:		1440	20%	10080
+    refresh_pattern ^gopher:	1440	0%	1440
+    refresh_pattern -i (/cgi-bin/|\?) 0	0%	0
+    refresh_pattern .		0	20%	4320
+    include /etc/squid/conf.d.tail/*.conf
+  openssl.cnf: |
+    [req]
+    distinguished_name = req_distinguished_name
+    x509_extensions = v3_req
+    prompt = no
+    [req_distinguished_name]
+    C = IT
+    ST = Italy
+    L = Milan
+    O = Squid
+    OU = DevOps  
+    CN = localhost 
+    [v3_req]
+    keyUsage = keyEncipherment, dataEncipherment
+    extendedKeyUsage = serverAuth
+    subjectAltName = @alt_names
+    [alt_names]
+    DNS.1 = localhost
+    [v3_ca]
+    subjectKeyIdentifier   = hash
+    authorityKeyIdentifier = keyid:always,issuer:always
+    basicConstraints = CA:true
+    subjectAltName = email:root@squid-cache.org
+    issuerAltName = issuer:copy
+kind: ConfigMap
+metadata:
+  name: squid
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: squid
+  name: squid
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: squid
+  template:
+    metadata:
+      labels:
+        app: squid
+    spec:
+      containers:
+      - image: b4tman/squid
+        name: squid
+        command: ['/usr/sbin/squid']
+        args: ['-f', '/etc/squid/squid.conf', '--foreground', '-YCd', '1']
+        volumeMounts:
+        - name: ssl-certs
+          mountPath: "/etc/squid/cert"
+          readOnly: true 
+        - name: squid-cache
+          mountPath: "/var/cache/squid"
+        - name: squid-conf
+          mountPath: /etc/squid/squid.conf
+          subPath: squid.conf
+          readOnly: true
+      initContainers:
+      - name: init-certificate
+        image: frapsoft/openssl
+        command: ['openssl']
+        args: ['req', '-config', '/tmp/openssl.cnf', '-new', '-newkey', 'rsa:2048', '-sha256', '-days', '365', '-nodes', '-x509', '-extensions', 'v3_ca', '-keyout', '/tmp/cert/squid-ca-key.pem', '-out', '/tmp/cert/squid-ca-cert.pem']
+        volumeMounts:
+        - name: squid-conf
+          mountPath: /tmp/openssl.cnf 
+          subPath: openssl.cnf 
+          readOnly: true
+        - name: ssl-certs
+          mountPath: "/tmp/cert"
+          readOnly: false
+      - name: init-squid
+        image:  b4tman/squid
+        command: ['/usr/lib/squid/security_file_certgen']
+        args: ['-c', '-s', '/var/cache/squid/ssl_db', '-M', '4MB']
+        volumeMounts:
+        - name: ssl-certs
+          mountPath: "/etc/squid/cert"
+          readOnly: true 
+        - name: squid-cache
+          mountPath: "/var/cache/squid"
+        - name: squid-conf
+          mountPath: /etc/squid/squid.conf
+          subPath: squid.conf
+          readOnly: true
+      volumes:
+      - name: squid-conf 
+        configMap:
+          name: squid
+      - name: ssl-certs
+        emptyDir: {}
+      - name: squid-cache
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: squid
+  name: squid
+spec:
+  ports:
+  - name: 3128-3128
+    port: 3128
+    protocol: TCP
+    targetPort: 3128
+  selector:
+    app: squid
+  type: NodePort
