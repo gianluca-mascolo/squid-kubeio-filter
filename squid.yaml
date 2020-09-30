@@ -40,40 +40,33 @@ data:
     acl KubeUrl urlpath_regex /(docs|search)
     acl StaticContent urlpath_regex \.(gif|jpg|png|svg|css|js|ttf|woff|woff2)$
     acl KubeIo ssl::server_name .kubernetes.io
-    acl GoogleSites ssl::server_name .googletagmanager.com
-    acl GoogleSites ssl::server_name .google.com 
-    acl GoogleSites ssl::server_name .googleapis.com
-    acl GoogleSites ssl::server_name stats.g.doubleclick.net
-    acl GoogleAnalytics ssl::server_name .google-analytics.com
-    acl CdnSites ssl::server_name .cloudflare.com 
-    acl CdnSites ssl::server_name .bootstrapcdn.com 
+    acl OtherSites ssl::server_name .googletagmanager.com
+    acl OtherSites ssl::server_name .google.com 
+    acl OtherSites ssl::server_name .googleapis.com
+    acl OtherSites ssl::server_name stats.g.doubleclick.net
+    acl OtherSites ssl::server_name .google-analytics.com
+    acl OtherSites ssl::server_name .cloudflare.com 
+    acl OtherSites ssl::server_name .bootstrapcdn.com 
+    acl OtherSites ssl::server_name .cognitive.microsoft.com
     acl KubeRef referer_regex ^https://kubernetes.io
     acl step1 at_step SslBump1
     acl step2 at_step SslBump2
     acl step3 at_step SslBump3
     ssl_bump peek step1 all
     ssl_bump bump KubeIo
-    ssl_bump bump GoogleSites
-    ssl_bump bump GoogleAnalytics
-    ssl_bump bump CdnSites
+    ssl_bump bump OtherSites
+    ssl_bump bump OtherSites
+    ssl_bump bump OtherSites
     ssl_bump terminate all
     http_access allow CONNECT localnet SSL_ports KubeIo
-    http_access allow CONNECT localnet SSL_ports GoogleSites
-    http_access allow CONNECT localnet SSL_ports GoogleAnalytics
-    http_access allow CONNECT localnet SSL_ports CdnSites
+    http_access allow CONNECT localnet SSL_ports OtherSites
     http_access allow CONNECT localhost SSL_ports KubeIo
-    http_access allow CONNECT localhost SSL_ports GoogleSites
-    http_access allow CONNECT localhost SSL_ports GoogleAnalytics
-    http_access allow CONNECT localhost SSL_ports CdnSites
+    http_access allow CONNECT localhost SSL_ports OtherSites
     http_access allow KubeIo KubeUrl
     http_access allow KubeIo StaticContent
     http_access deny KubeIo 
-    http_access allow GoogleSites KubeRef
-    http_access allow GoogleSites StaticContent
-    http_access allow CdnSites KubeRef
-    http_access allow CdnSites StaticContent
-    http_access allow GoogleAnalytics KubeRef
-    http_access allow GoogleAnalytics StaticContent
+    http_access allow OtherSites KubeRef
+    http_access allow OtherSites StaticContent
     # And finally deny all other access to this proxy
     http_access deny all
     cache deny all
@@ -108,7 +101,7 @@ data:
     L = Milan
     O = Squid
     OU = DevOps  
-    CN = localhost 
+    CN = Squid kubernetes.io filter 
     [v3_req]
     keyUsage = keyEncipherment, dataEncipherment
     extendedKeyUsage = serverAuth
@@ -204,6 +197,7 @@ spec:
     port: 3128
     protocol: TCP
     targetPort: 3128
+    nodePort: 32128
   selector:
     app: squid
   type: NodePort
