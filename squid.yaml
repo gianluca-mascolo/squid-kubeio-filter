@@ -19,16 +19,18 @@ data:
     acl SSL_ports port 443
     acl Safe_ports port 80		# http
     acl Safe_ports port 443		# https
+    acl SquidPort port 3128
     acl CONNECT method CONNECT
     #
     # Recommended minimum Access Permission configuration:
     #
     # Deny requests to certain unsafe ports
+    http_access allow SquidPort localhost
     http_access deny !Safe_ports
     # Deny CONNECT to other than secure SSL ports
     #http_access deny CONNECT !SSL_ports
     # Only allow cachemgr access from localhost
-    #http_access allow localhost manager
+    http_access allow localhost manager
     http_access deny manager
     # We strongly recommend the following be uncommented to protect innocent
     # web applications running on the proxy server who think the only
@@ -139,6 +141,22 @@ spec:
         name: squid
         command: ['/usr/sbin/squid']
         args: ['-f', '/etc/squid/squid.conf', '--foreground', '-YCd', '1']
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -exc
+            - "squidclient -T 3 https://kubernetes.io/docs/home/ | grep -qF '200 OK'"
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -exc
+            - "squidclient -T 3 mgr:info 2> /dev/null | grep -qF '200 OK'"
+          initialDelaySeconds: 5
+          periodSeconds: 5
         volumeMounts:
         - name: ssl-certs
           mountPath: "/etc/squid/cert"
