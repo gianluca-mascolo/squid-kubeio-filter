@@ -169,9 +169,9 @@ spec:
           readOnly: true
       initContainers:
       - name: init-certificate
-        image: frapsoft/openssl
-        command: ['openssl']
-        args: ['req', '-config', '/tmp/openssl.cnf', '-new', '-newkey', 'rsa:2048', '-sha256', '-days', '365', '-nodes', '-x509', '-extensions', 'v3_ca', '-keyout', '/tmp/cert/squid-ca-key.pem', '-out', '/tmp/cert/squid-ca-cert.pem']
+        image: rnix/openssl-gost
+        command: ['/bin/sh']
+        args: [ '-c', '[ -f /tmp/cert/squid-ca-cert.pem ] || /usr/bin/openssl req -config /tmp/openssl.cnf -new -newkey rsa:2048 -sha256 -days 365 -nodes -x509 -extensions v3_ca -keyout /tmp/cert/squid-ca-key.pem -out /tmp/cert/squid-ca-cert.pem ; chmod ugo+r /tmp/cert/*.pem' ]
         volumeMounts:
         - name: squid-conf
           mountPath: /tmp/openssl.cnf 
@@ -182,8 +182,8 @@ spec:
           readOnly: false
       - name: init-squid
         image:  b4tman/squid
-        command: ['/usr/lib/squid/security_file_certgen']
-        args: ['-c', '-s', '/var/cache/squid/ssl_db', '-M', '4MB']
+        command: ['/bin/sh']
+        args: ['-c', 'rm -rf /var/cache/squid/ssl_db ; /usr/lib/squid/security_file_certgen -c -s /var/cache/squid/ssl_db -M 4MB']
         volumeMounts:
         - name: ssl-certs
           mountPath: "/etc/squid/cert"
@@ -199,7 +199,9 @@ spec:
         configMap:
           name: squid
       - name: ssl-certs
-        emptyDir: {}
+        hostPath:
+          path: /squid-cert
+          type: DirectoryOrCreate
       - name: squid-cache
         emptyDir: {}
 ---
