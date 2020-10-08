@@ -11,7 +11,7 @@ kubectl apply -f squid.yaml
 ```
 It use the following images on Docker Hub
 - [b4tman/squid](https://hub.docker.com/r/b4tman/squid) ([source](https://github.com/b4tman/docker-squid))
-- [frapsoft/openssl](https://hub.docker.com/r/frapsoft/openssl) ([source](https://github.com/ellerbrock/openssl-docker))
+- [rnix/openssl-gost](https://hub.docker.com/r/rnix/openssl-gost) ([source](https://github.com/rnixik/docker-openssl-gost))
 
 ## Howto
 
